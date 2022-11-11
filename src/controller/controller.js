@@ -1,11 +1,11 @@
 const studentModel = require("../model/student")
 const userModel = require("../model/user")
 const jwt = require("jsonwebtoken")
-// const bcrypt = require("bcrypt")
+const bcrypt = require("bcrypt")
 
 const add_user = async (req, res) => {
     try {
-        console.log(req.body)
+       
         if (!req.body) return res.status(400).send({ status: false, message: "please provide name,email and password" })
 
         const { name, email, password } = req.body
@@ -14,17 +14,15 @@ const add_user = async (req, res) => {
 
         if (!/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) return res.status(400).send({ status: false, message: "Invalid email" })
         
-
-        const findUser = await userModel.findOne({ email: email })
-        if (findUser) return res.send({ status: false, message: "email already registered" })
-
-        // let saltRounds = await bcrypt.genSalt(10)
-        // let encryptedPassword = await bcrypt.hash(password, saltRounds)
-        // req.body.password = encryptedPassword
-        console.log(req.body)
+        let checkunique= await userModel.findOne({email:req.body.email}) 
+        if (checkunique) return res.status(400).send({status:false,msg:"This Email Id Already Exists Pls Use Another"})
+        let saltRounds = await bcrypt.genSalt(10)
+        let encryptedPassword = await bcrypt.hash(password, saltRounds)
+        req.body.password = encryptedPassword
+        // console.log(req.body)
         const createdUser = await userModel.create(req.body)
-        // console.log(createdUser)
-        return res.status(201).send(createdUser)
+        console.log(createdUser)
+        return res.status(201).send({status: true,data : createdUser})
     } catch (error) {
         res.send(error)
     }
@@ -39,16 +37,15 @@ const login = async (req, res) => {
         const findUser = await userModel.findOne({ email: email })
         if (!findUser) return res.send({ status: false, message: "email or password is incorrect" })
 
-        // let encryptPassword = await bcrypt.compare(password, findUser.password)
-        // if (!encryptPassword) return res.status(401).send({ Status: false, Msg: " Password is InCorrect!!!" })
-        if (findUser.password!=password) return res.status(401).send({ Status: false, Msg: " Password is InCorrect!!!" })
+        let decPassword = await bcrypt.compare(password, findUser.password)
+        if (!decPassword) return res.status(401).send({ error: "Invalid Password" });
+
         const token = jwt.sign({ userId: findUser._id }, "secret-key")
-        // console.log(token)
+    
         return res.status(200).send({status:true,token:token})
 
     } catch (error) {
-        res.send(error)
-    }
+        return res.status(500).send({ msg: error.message })    }
 }
 
 const add_Student = async (req, res) => {
@@ -68,8 +65,7 @@ const add_Student = async (req, res) => {
        
 
     } catch (error) {
-        res.send(error)
-    }
+        return res.status(500).send({ msg: error.message })    }
 }
 const get_Student = async (req, res) => {
     try {
@@ -81,8 +77,7 @@ const get_Student = async (req, res) => {
         res.status(200).send({status:true,data:findStudents})
 
     } catch (error) {
-        res.send(error)
-    }
+        return res.status(500).send({ msg: error.message })    }
 }
 const update_student = async (req, res) => {
     try {
@@ -97,8 +92,7 @@ const update_student = async (req, res) => {
 
     } catch (error) {
         console.log(error)
-        res.send(error)
-    }
+        return res.status(500).send({ msg: error.message })    }
 }
 
 const delete_student = async (req, res) => {
@@ -108,11 +102,10 @@ const delete_student = async (req, res) => {
         const findStudent = await studentModel.findById(id)
         if (findStudent.userId != req.userId) return res.send({ status: false, message: "unauthorized request" })
 
-        const deleteStudent = await studentModel.findByIdAndDelete(id)
+        await studentModel.findByIdAndDelete(id)
         res.status(200).send({status:true,message:"student deleted sucessfully"})
     } catch (error) {
-        res.send(error)
-    }
+        return res.status(500).send({ msg: error.message })    }
 }
 
 module.exports = { add_user, login, add_Student, get_Student, update_student, delete_student }
